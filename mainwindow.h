@@ -35,16 +35,29 @@ private:
     Ui::MainWindow *ui;
 
     QChart *chrt;
+    QPen pen;
     double minX, maxX, minY, maxY;
+    int currentRow;
     QString fileName;
     QVector < QVector <double> > data;
     QStringList headers;
+    QStringList horizHeader;
     QVector < QVector < QVector <double> > > array;
     QVector <double> depth;
     QVector <double> minimalX;
     QVector <double> maximalX;
     QVector <double> minimalDepth;
     QVector <double> maximalDepth;
+
+    struct Reading
+    {
+        double depth;
+        double value;
+        Reading(const double p_depth, const double p_value)
+            : depth(p_depth), value(p_value) {}
+    };
+
+    std::vector < std::vector <Reading> > mainData;
 };
 
 #endif // MAINWINDOW_H
