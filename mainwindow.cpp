@@ -9,6 +9,23 @@ MainWindow::MainWindow(QWidget *parent) :
 
     connect(ui->listWidget, SIGNAL(itemClicked(QListWidgetItem*)),
                         this, SLOT(on_listWidget_itemClicked(QListWidgetItem*)));
+
+    QMessageBox msgBox;
+    chrt = new QChart;
+    chrt->legend()->hide();
+    ui->vchrt->setChart(chrt);
+    ui->vchrt->setRubberBand(QChartView::VerticalRubberBand);
+
+    brushVector << Qt::red << Qt::gray << Qt::green << Qt::black << Qt::blue << Qt::darkBlue
+                << Qt::darkCyan << Qt::darkGray << Qt::darkGreen << Qt::darkMagenta << Qt::darkRed;
+
+    axisY.setReverse();
+    axisY.setRange(0, 0);
+    axisY.setMinorTickCount(10);
+    axisY.setTickCount(5);
+    axisY.setLabelFormat("%g");
+    axisY.setTitleText("Глубина, м");
+    chrt->addAxis(&axisY, Qt::AlignLeft);
 }
 
 MainWindow::~MainWindow()
@@ -18,7 +35,9 @@ MainWindow::~MainWindow()
 
 void MainWindow::on_btnHide_clicked()
 {
-    chrt->removeAllSeries();
+//    series[currentRow]->detachAxis(axisXs[currentRow]);
+    chrt->removeSeries(series[currentRow]);
+    chrt->removeAxis(axisXs[currentRow]);
 }
 
 void MainWindow::on_btnShow_clicked()
@@ -29,48 +48,18 @@ void MainWindow::on_btnShow_clicked()
     minY = mainData[currentRow][0].depth;
     maxY = mainData[currentRow][mainData[currentRow].size()].depth;
 
-    chrt = new QChart;
+    chrt->addSeries(series[currentRow]);
 
-    chrt->legend()->hide();
+    chrt->addAxis(axisXs[currentRow], Qt::AlignTop);
+    series[currentRow]->attachAxis(axisXs[currentRow]);
 
-    ui->vchrt->setChart(chrt);
-    ui->vchrt->setRubberBand(QChartView::VerticalRubberBand);
+    axisXs[currentRow]->setRange(minX, maxX);
+    series[currentRow]->attachAxis(&axisY);
 
-    QLineSeries* series1 = new QLineSeries;
-    pen.setWidthF(0.5);
-    pen.setBrush(Qt::red);
-    series1->setPen(pen);
-
-    for (int i = 0; i < mainData[currentRow].size(); i++)
-    {
-        series1->append(mainData[currentRow][i].value, mainData[currentRow][i].depth);
-    }
-
-    chrt->addSeries(series1);
-
-    QValueAxis *axisX = new QValueAxis;
-    axisX->setRange(minX, maxX);
-    axisX->setMinorTickCount(6);
-    axisX->setTickCount(3);
-    axisX->setLabelFormat("%.2f");
-    axisX->setTitleText(headers[currentRow]);
-    chrt->addAxis(axisX, Qt::AlignTop);
-    series1->attachAxis(axisX);
-
-    QValueAxis *axisY = new QValueAxis;
-    axisY->setReverse();
-    axisY->setRange(minY, maxY);
-    axisY->setMinorTickCount(10);
-    axisY->setTickCount(5);
-    axisY->setLabelFormat("%g");
-    axisY->setTitleText("Глубина, м");
-    chrt->addAxis(axisY, Qt::AlignLeft);
-    series1->attachAxis(axisY);
 }
 
 void MainWindow::on_btnOpen_clicked()
 {
-    QMessageBox msgBox;
     fileName = QFileDialog::getOpenFileName(this, tr("Open File"), ":/", tr("CSV Files (*.csv)"));
     QFile file(fileName);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
@@ -172,12 +161,43 @@ void MainWindow::on_btnOpen_clicked()
 // GIS-method's list
     for (int i = 0; i < mainData.size(); i++)
     {
+        headersOnly.append(headers[i]);
         headers[i] = headers[i] + " (" + QString::number(minimalDepth.at(i)) + " - " + QString::number(maximalDepth.at(i)) + ")";
     }
     ui->listWidget->addItems(headers);
 
     horizHeader.append("Глубина");
     horizHeader.append("Значение");
+
+// collecting chart series
+
+//    series = new QLineSeries*[mainData.size()];
+    axisXs = new QValueAxis*[mainData.size()];
+
+    for (int i = 0; i < mainData.size(); i++)
+    {
+        int brushVectorIndex = rand()%brushVector.size();
+        QLineSeries* serie = new QLineSeries();
+        pen.setWidthF(1);
+        pen.setBrush(brushVector.at(brushVectorIndex));
+        serie->setPen(pen);
+
+        for (int j = 0; j < mainData[i].size(); j++)
+        {
+            *serie << QPointF(mainData[i][j].value, mainData[i][j].depth);
+        }
+        connect(serie, &QXYSeries::clicked, this, &MainWindow::on_series_Clicked);
+        series << serie;
+
+        QValueAxis *axisXItem = new QValueAxis;
+        axisXItem->setMinorTickCount(6);
+        axisXItem->setTickCount(3);
+        axisXItem->setLabelFormat("%.2f");
+        axisXItem->setTitleText(headersOnly[i]);
+        axisXItem->setLabelsBrush(brushVector.at(brushVectorIndex));
+        axisXItem->setTitleBrush(brushVector.at(brushVectorIndex));
+        axisXs[i] = axisXItem;
+    }
 }
 
 void MainWindow::on_listWidget_itemClicked(QListWidgetItem *item)
@@ -204,18 +224,27 @@ void MainWindow::on_listWidget_itemClicked(QListWidgetItem *item)
         twItem->setText(QString::number(mainData.at(currentRow).at(i).value)/*.arg(i).arg(1)*/);
         ui->tableWidget->setItem(i, 1, twItem);
     }
+}
 
-//    QStandardItemModel model(data.size(), 2);
-/*    array.squeeze();
-    int a, b;
-    for (int i = 0; i < data.size(); i++)
-        for (int j = 0; j < data[i].size(); j++)
-        {
-            if (data[i][j] != -999.25)
-            {
-                array[a][b] = data[i][j];
-                a++;
-                b++;
-            }
-        }*/
+/*void MainWindow::on_series_Clicked(QPointF *point)
+{
+    if (series[currentRow]->pen().widthF() == 1)
+    {
+        series[currentRow]->pen().setWidthF(5);
+    }
+    else
+    {
+        series[currentRow]->pen().setWidthF(1);
+    }
+
+    ui->lblGisMethod->setText("line selected!");
+}*/
+void MainWindow::on_series_Clicked()
+{
+    auto serie = qobject_cast<QLineSeries*>(sender());
+    QPen p = serie->pen();
+    p.setWidth( p.width() == 1 ? 2: 1);
+    serie->setPen(p);
+    ui->listWidget->setCurrentRow(series.indexOf(serie));
+    MainWindow::on_listWidget_itemClicked(ui->listWidget->currentItem());
 }

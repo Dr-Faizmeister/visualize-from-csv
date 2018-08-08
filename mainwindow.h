@@ -31,16 +31,26 @@ private slots:
 
     void on_listWidget_itemClicked(QListWidgetItem *item);
 
+//    void on_series_Clicked(QPointF *point);
+
+    void on_series_Clicked();
+
 private:
     Ui::MainWindow *ui;
 
     QChart *chrt;
+//    QLineSeries **series;
+    QList <QLineSeries*> series;
+    QValueAxis **axisXs;
     QPen pen;
+    QValueAxis axisY;
+    QVector <QBrush> brushVector;
     double minX, maxX, minY, maxY;
     int currentRow;
     QString fileName;
     QVector < QVector <double> > data;
     QStringList headers;
+    QStringList headersOnly;
     QStringList horizHeader;
     QVector < QVector < QVector <double> > > array;
     QVector <double> depth;
