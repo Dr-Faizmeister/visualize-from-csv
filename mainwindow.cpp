@@ -7,6 +7,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
+//listWidget item click
     connect(ui->listWidget, SIGNAL(itemClicked(QListWidgetItem*)),
                         this, SLOT(on_listWidget_itemClicked(QListWidgetItem*)));
 
@@ -14,11 +15,17 @@ MainWindow::MainWindow(QWidget *parent) :
     chrt = new QChart;
     chrt->legend()->hide();
     ui->vchrt->setChart(chrt);
-    ui->vchrt->setRubberBand(QChartView::VerticalRubberBand);
+// old zoom method
+//    ui->vchrt->setRubberBand(QChartView::VerticalRubberBand);
 
+// mousewheel zoom method
+    ui->vchrt->setDirectionZoom(ChartView::VerticalZoom);
+
+// list of available colors for curves
     brushVector << Qt::red << Qt::gray << Qt::green << Qt::black << Qt::blue << Qt::darkBlue
                 << Qt::darkCyan << Qt::darkGray << Qt::darkGreen << Qt::darkMagenta << Qt::darkRed;
 
+// depth axis
     axisY.setReverse();
     axisY.setRange(0, 0);
     axisY.setMinorTickCount(10);
@@ -42,17 +49,20 @@ void MainWindow::on_btnHide_clicked()
 
 void MainWindow::on_btnShow_clicked()
 {
+// min/max X
     minX = ui->lineEditMin->text().toDouble();
     maxX = ui->lineEditMax->text().toDouble();
 
+// min/max Y
     minY = mainData[currentRow][0].depth;
     maxY = mainData[currentRow][mainData[currentRow].size()].depth;
 
+// plot
     chrt->addSeries(series[currentRow]);
-
     chrt->addAxis(axisXs[currentRow], Qt::AlignTop);
     series[currentRow]->attachAxis(axisXs[currentRow]);
 
+// upscaling
     axisXs[currentRow]->setRange(minX, maxX);
     series[currentRow]->attachAxis(&axisY);
 
@@ -60,11 +70,18 @@ void MainWindow::on_btnShow_clicked()
 
 void MainWindow::on_btnOpen_clicked()
 {
+// file import
     fileName = QFileDialog::getOpenFileName(this, tr("Open File"), ":/", tr("CSV Files (*.csv)"));
     QFile file(fileName);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
             return;
 
+// first steps of processing
+    data.squeeze();
+    mainData.clear();
+    headers.clear();
+    headersOnly.clear();
+    ui->listWidget->clear();
     QString firstRow = file.readLine();
     headers = firstRow.split(';');
     headers.removeAt(0);
@@ -76,7 +93,6 @@ void MainWindow::on_btnOpen_clicked()
     firstColumn.append(line.split(';').first());
     lines.append(line);
     }
-    data.squeeze();
 
     int rowCount = lines.size() + 1; // row count
     int colCount = lines.at(0).count(";") + 2; // col count
@@ -133,7 +149,7 @@ void MainWindow::on_btnOpen_clicked()
         readings.clear();
     }
 
-// max/min
+// max/min X,Y calculating
     for (size_t i = 0; i < mainData.size(); i++)
     {
         double maxX, minX, minDepth, maxDepth;
@@ -169,8 +185,7 @@ void MainWindow::on_btnOpen_clicked()
     horizHeader.append("Глубина");
     horizHeader.append("Значение");
 
-// collecting chart series
-
+// collecting of chart series and axisX for each series
 //    series = new QLineSeries*[mainData.size()];
     axisXs = new QValueAxis*[mainData.size()];
 
@@ -198,8 +213,10 @@ void MainWindow::on_btnOpen_clicked()
         axisXItem->setTitleBrush(brushVector.at(brushVectorIndex));
         axisXs[i] = axisXItem;
     }
+    file.close();
 }
 
+//listWidget item click
 void MainWindow::on_listWidget_itemClicked(QListWidgetItem *item)
 {
     currentRow = ui->listWidget->currentRow();
@@ -226,19 +243,7 @@ void MainWindow::on_listWidget_itemClicked(QListWidgetItem *item)
     }
 }
 
-/*void MainWindow::on_series_Clicked(QPointF *point)
-{
-    if (series[currentRow]->pen().widthF() == 1)
-    {
-        series[currentRow]->pen().setWidthF(5);
-    }
-    else
-    {
-        series[currentRow]->pen().setWidthF(1);
-    }
-
-    ui->lblGisMethod->setText("line selected!");
-}*/
+// mouseclick on curve
 void MainWindow::on_series_Clicked()
 {
     auto serie = qobject_cast<QLineSeries*>(sender());

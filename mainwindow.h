@@ -7,6 +7,7 @@
 #include <sstream>
 #include <QTextCodec>
 #include <QMessageBox>
+#include <chartview.h>>
 
 using namespace QtCharts;
 
@@ -30,8 +31,6 @@ private slots:
     void on_btnOpen_clicked();
 
     void on_listWidget_itemClicked(QListWidgetItem *item);
-
-//    void on_series_Clicked(QPointF *point);
 
     void on_series_Clicked();
 
